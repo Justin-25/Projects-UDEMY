@@ -8,38 +8,15 @@ body {
 }
 .main {
   flex: 1;
-  display: grid;
-}
-
-.main h1 > span {
-  color: #191970;
-}
-
-.card {
-  
-}
-
-.tile-image {
-  width: 300px;
-  height: 200px;
-  float: left;
-  padding-right: 50px;
-}
-
-.left {
-  background-color: #191970;
-  float: left;
-}
-
-.right {
-  background-color: #191970;
-  float: right;
 }
 
 h1 {
   font-size: 5rem;
 }
 
+h1 > span {
+  color: #191970;
+}
 footer {
   text-align: right;
   color: midnightblue;

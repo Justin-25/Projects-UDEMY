@@ -9,7 +9,7 @@ const db = new pg.Client({
   user: "postgres",
   host: "localhost",
   database: "world",
-  password: "123456",
+  password: "password",
   port: 5432,
 });
 db.connect();
@@ -25,24 +25,37 @@ let users = [
 ];
 
 async function checkVisisted() {
-  const result = await db.query("SELECT country_code FROM visited_countries");
+  const result = await db.query("SELECT country_code FROM visited_countries JOIN users ON user_id = users.id WHERE users.id = $1", [currentUserId]);
   let countries = [];
   result.rows.forEach((country) => {
     countries.push(country.country_code);
   });
   return countries;
 }
+
+async function getCurrentUser() {
+  const result = await db.query("SELECT * FROM users");
+  users = result.rows;
+  return (
+    users.find((user) => {
+      return user.id == currentUserId;
+    })
+  )
+}
+
 app.get("/", async (req, res) => {
   const countries = await checkVisisted();
+  const currentUsers = await getCurrentUser();
   res.render("index.ejs", {
     countries: countries,
     total: countries.length,
     users: users,
-    color: "teal",
+    color: currentUsers.color,
   });
 });
+
 app.post("/add", async (req, res) => {
-  const input = req.body["country"];
+  const input = req.body.country;
 
   try {
     const result = await db.query(
@@ -52,6 +65,8 @@ app.post("/add", async (req, res) => {
 
     const data = result.rows[0];
     const countryCode = data.country_code;
+
+    // Update: when the user add a country it will also have a user_id base on user who will click it on user family(currentUserId)
     try {
       await db.query(
         "INSERT INTO visited_countries (country_code) VALUES ($1)",
@@ -65,7 +80,20 @@ app.post("/add", async (req, res) => {
     console.log(err);
   }
 });
-app.post("/user", async (req, res) => {});
+
+app.post("/user", async (req, res) => {
+  currentUserId = parseInt(req.body.user);
+  const add = req.body.add;
+  const currentUsers = await getCurrentUser(); 
+
+  if (add === "new") {
+    res.render('new.ejs')
+  } else if (currentUserId === currentUsers.id) {
+    await db.query("SELECT country_code FROM visited_countries JOIN users ON user_id = users.id WHERE users.id = $1", [currentUserId]);
+    res.redirect("/")
+  }
+
+});
 
 app.post("/new", async (req, res) => {
   //Hint: The RETURNING keyword can return the data that was inserted.

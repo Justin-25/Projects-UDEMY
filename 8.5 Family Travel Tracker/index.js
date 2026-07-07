@@ -19,10 +19,7 @@ app.use(express.static("public"));
 
 let currentUserId = 1;
 
-let users = [
-  { id: 1, name: "Angela", color: "teal" },
-  { id: 2, name: "Jack", color: "powderblue" },
-];
+let users = [];
 
 async function checkVisisted() {
   const result = await db.query("SELECT country_code FROM visited_countries JOIN users ON user_id = users.id WHERE users.id = $1", [currentUserId]);
@@ -62,17 +59,19 @@ app.post("/add", async (req, res) => {
       "SELECT country_code FROM countries WHERE LOWER(country_name) LIKE '%' || $1 || '%';",
       [input.toLowerCase()]
     );
-
     const data = result.rows[0];
     const countryCode = data.country_code;
-
-    // Update: when the user add a country it will also have a user_id base on user who will click it on user family(currentUserId)
+    const currentUsers = await getCurrentUser(); 
     try {
-      await db.query(
-        "INSERT INTO visited_countries (country_code) VALUES ($1)",
-        [countryCode]
-      );
-      res.redirect("/");
+      if (currentUserId === currentUsers.id) {
+        await db.query(
+          "INSERT INTO visited_countries (country_code, user_id) VALUES ($1, $2)",
+          [countryCode, currentUserId]
+        );
+        res.redirect("/"); 
+      } else {
+        console.log("There's an error...")
+      }
     } catch (err) {
       console.log(err);
     }
@@ -92,12 +91,27 @@ app.post("/user", async (req, res) => {
     await db.query("SELECT country_code FROM visited_countries JOIN users ON user_id = users.id WHERE users.id = $1", [currentUserId]);
     res.redirect("/")
   }
-
 });
 
 app.post("/new", async (req, res) => {
   //Hint: The RETURNING keyword can return the data that was inserted.
   //https://www.postgresql.org/docs/current/dml-returning.html
+  const name = req.body.name;
+  const color = req.body.color;
+  try {
+    const result = await db.query("INSERT INTO users (name, color) VALUES ($1, $2) RETURNING id;", [name, color]);
+    const user = result.rows[0];
+    const newUserId = user.id;
+      currentUserId = newUserId;
+
+    if (!currentUserId) {
+      return null
+    }
+
+    res.redirect("/");
+  } catch (error) {
+    console.error("There's an error", error);
+  }
 });
 
 app.listen(port, () => {
